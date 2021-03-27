@@ -44,13 +44,22 @@ module.exports = {
       if (!Util.isValid(estimate_time, "number", false)) {
         throw "OrderAPI_modelPlaceOrder_InvalidInputEstimateTime";
       }
-      const order_id = "";
+      const order_id = Util.getDateTime().split(" ")[0].replace(/-/g, "") + "01";
       // node_num
       // distance
       // estimate_time
-      const create_date = Util;
-      const status = "";
-      // console.log()
+      const create_date = Util.getDateTime();
+      const status = "1";
+
+      const insert_obj = {
+        order_id: order_id,
+        node_num: node_num,
+        distance: distance,
+        estimate_time: estimate_time,
+        create_date: create_date,
+        status: status,
+      };
+      console.log("Insert => ", insert_obj);
 
       ret_data.success = true;
       ret_data.description = "OrderAPI_modelPlaceOrder_Success";
