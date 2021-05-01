@@ -5,7 +5,7 @@ module.exports = {
       return false;
     } else {
       switch (dataType) {
-        case "string":
+        case "varchar":
           if (typeof data === "string") {
             return true;
           }
