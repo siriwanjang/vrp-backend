@@ -34,8 +34,7 @@ app.post("/api", (req, res) => {
       } else {
         requestAPI[method](data, (result) => {
           // console.log(result);
-          ret_data.status.success = result.success;
-          ret_data.status.description = result.description;
+          ret_data.status = result.status;
           ret_data.data = result.data;
           if (ret_data.data === null) {
             delete ret_data.data;
