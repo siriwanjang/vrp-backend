@@ -22,17 +22,6 @@ module.exports = {
     return new Promise((resolve, reject) => {
       conn = mysql.createPool(localDBConfig);
       console.log("Database Connected!");
-
-      // conn.connect(function (err) {
-      //   try {
-      //     if (err) throw err;
-      //     console.log("Database Connected!");
-      //     resolve("db_connected");
-      //   } catch (error) {
-      //     console.log(error);
-      //     reject(error.code);
-      //   }
-      // });
     });
   },
   query: (sql, callback) => {
