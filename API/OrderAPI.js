@@ -2,51 +2,87 @@ const Util = require("../Utility/Util");
 var path = require("path");
 var scriptName = path.basename(__filename, ".js");
 
+const Database = require("../connections/Database");
+
 let std_ret = {
-  success: false,
-  description: "",
+  status: {
+    success: false,
+    description: "",
+  },
   data: null,
 };
 
 module.exports = {
-  testMethod: (data, callback) => {
-    const ret_data = { ...std_ret };
-    try {
-      ret_data.success = true;
-      ret_data.description = "Success_process";
-      ret_data.data = [1, 2, 3, 4, 5];
-      callback(ret_data);
-      // throw "test err";
-    } catch (err) {
-      ret_data.success = false;
-      ret_data.description = err;
-      ret_data.data = null;
-      // console.log(typeof err.stack);
-      if (err.stack !== undefined) {
-        ret_data.description = err.stack;
-      }
-      // console.log(ret_data);
-      callback(ret_data);
-    }
-  },
-  modelPlaceOrder: (data, callback) => {
+  modelCreateOrder: async (data, callback) => {
     const ret_data = { ...std_ret };
 
     const node_num = data.node_num;
     const distance = data.distance;
     const estimate_time = data.estimate_time;
+    const node_list = data.node_list;
 
     try {
       if (!Util.isValid(node_num, "number", false)) {
-        throw "OrderAPI_modelPlaceOrder_InvalidInputNodeNum";
+        throw `${scriptName}_modelCreateOrder_InvalidInputNodeNum`;
       }
       if (!Util.isValid(distance, "number", false)) {
-        throw "OrderAPI_modelPlaceOrder_InvalidInputDistance";
+        throw `${scriptName}_modelCreateOrder_InvalidInputDistance`;
       }
       if (!Util.isValid(estimate_time, "number", false)) {
-        throw "OrderAPI_modelPlaceOrder_InvalidInputEstimateTime";
+        throw `${scriptName}_modelCreateOrder_InvalidInputEstimateTime`;
       }
-      const order_id = Util.getDateTime().split(" ")[0].replace(/-/g, "") + "01";
+      if (!Util.isValid(node_list, "list", false)) {
+        throw `${scriptName}_modelCreateOrder_InvalidInputNodeList`;
+      }
+
+      const dbOrigin = new Database();
+      // check array equal nodenum
+      if (node_list.length !== node_num) {
+        throw `${scriptName}_modelCreateOrder_NodeListNotEqualNodeNum`;
+      }
+      // check each node_list is exist on database
+      const location_id_list = [];
+      for (let e_node of node_list) {
+        const sql_select = "SELECT *";
+        const sql_from = " FROM location";
+        let sql_where = " WHERE 1 = 1";
+        sql_where += ` AND location_lat = ${dbOrigin.escape(e_node.lat)}`;
+        sql_where += ` AND location_long = ${dbOrigin.escape(e_node.long)}`;
+
+        let result = await dbOrigin.query(sql_select + sql_from + sql_where);
+        if (result.length < 1) {
+          const sql_insert = "INSERT INTO location (location_name,location_lat, location_long)";
+          const sql_values = ` VALUE (
+                                ${dbOrigin.escape(e_node.location_name)},
+                                ${dbOrigin.escape(e_node.lat)},
+                                ${dbOrigin.escape(e_node.long)}
+                              )`;
+          const insert_result = await dbOrigin.query(sql_insert + sql_values);
+          if (!insert_result) {
+            throw `${scriptName}_modelCreateOrder_ErrorInsertLocation`;
+          }
+          result = await dbOrigin.query(sql_select + sql_from + sql_where);
+        }
+        location_id_list.push({ location_seq: e_node.seq, location_id: result[0].location_id });
+      }
+
+      // create order
+
+      let order_id = Util.getDateTime().split(" ")[0].replace(/-/g, "");
+      let result_for_id;
+      let suffix_id = 0;
+      do {
+        const sql_select = "SELECT *";
+        const sql_from = " FROM orders";
+        let sql_where = " WHERE 1=1";
+        sql_where += ` AND order_id = ${dbOrigin.escape(
+          order_id + Util.zeroPadding(2, ++suffix_id)
+        )}`;
+        result_for_id = await dbOrigin.query(sql_select + sql_from + sql_where);
+
+        // console.log(sql_select + sql_from + sql_where);
+      } while (result_for_id.length > 0);
+      order_id += Util.zeroPadding(2, suffix_id);
       // node_num
       // distance
       // estimate_time
@@ -61,15 +97,75 @@ module.exports = {
         create_date: create_date,
         status: status,
       };
-      console.log("Insert => ", insert_obj);
+      // console.log("Insert => ", insert_obj);
+      const sql_insert1 =
+        "INSERT INTO orders (order_id, node_num, distance, estimate_time, create_date, status)";
+      const sql_values1 = ` VALUE (
+                            ${dbOrigin.escape(insert_obj.order_id)},
+                            ${dbOrigin.escape(insert_obj.node_num)},
+                            ${dbOrigin.escape(insert_obj.distance)},
+                            ${dbOrigin.escape(insert_obj.estimate_time)},
+                            ${dbOrigin.escape(insert_obj.create_date)},
+                            ${dbOrigin.escape(insert_obj.status)}
+                          )`;
+      const insert_result1 = await dbOrigin.query(sql_insert1 + sql_values1);
+      if (!insert_result1) {
+        throw `${scriptName}_modelCreateOrder_ErrorInsertOrder`;
+      }
 
-      ret_data.success = true;
-      ret_data.description = "OrderAPI_modelPlaceOrder_Success";
+      // insert location_sequence
+      const sql_insert2 = "INSERT INTO location_sequence (sequence, order_id, location_id)";
+      let sql_values2 = `VALUES `;
+      for (let e_location_id_list of location_id_list) {
+        sql_values2 += `(
+          ${dbOrigin.escape(e_location_id_list.location_seq)},
+          ${dbOrigin.escape(insert_obj.order_id)},
+          ${dbOrigin.escape(e_location_id_list.location_id)}
+        ),`;
+      }
+      sql_values2 = sql_values2.slice(0, -1);
+      const insert_result2 = await dbOrigin.query(sql_insert2 + sql_values2);
+      if (!insert_result2) {
+        throw `${scriptName}_modelCreateOrder_ErrorInsertLocationSeq`;
+      }
+
+      ret_data.status.success = true;
+      ret_data.status.description = `${scriptName}_modelCreateOrder_Success`;
       // ret_data.data = null;
       callback(ret_data);
     } catch (err) {
-      ret_data.success = false;
-      ret_data.description = err;
+      ret_data.status.success = false;
+      ret_data.status.description = err;
+      ret_data.data = null;
+      // console.log(typeof err.stack);
+      if (err.stack !== undefined) {
+        ret_data.description = err.stack;
+      }
+      // console.log(ret_data);
+      callback(ret_data);
+    }
+  },
+  userGetOrderList: async (data, callback) => {
+    const ret_data = { ...std_ret };
+    try {
+      const dbOrigin = new Database();
+      const sql_select = "SELECT *";
+      const sql_from = " FROM orders";
+      // where time range
+      // let sql_where = " WHERE 1=1";
+      const result = await dbOrigin.query(sql_select + sql_from);
+      if (result.length < 1) {
+        ret_data.status.description = `${scriptName}_userGetOrderList_OrderNotFound`;
+      }
+      console.log(result);
+
+      ret_data.status.success = true;
+      ret_data.status.description = `${scriptName}_modelCreateOrder_Success`;
+      ret_data.data = result;
+      callback(ret_data);
+    } catch (err) {
+      ret_data.status.success = false;
+      ret_data.status.description = err;
       ret_data.data = null;
       // console.log(typeof err.stack);
       if (err.stack !== undefined) {
