@@ -1,10 +1,12 @@
 const express = require("express");
 const fs = require("fs");
 // const db = require("./connections/database");
+const cors = require("cors");
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors());
 const port = 4000;
 
 // test db
