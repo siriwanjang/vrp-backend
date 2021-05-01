@@ -15,6 +15,11 @@ module.exports = {
             return true;
           }
           break;
+        case "list":
+          if (Array.isArray(data) === true) {
+            return true;
+          }
+          break;
         default:
           return true;
       }
