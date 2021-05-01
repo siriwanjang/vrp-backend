@@ -1,4 +1,6 @@
 const Util = require("../Utility/Util");
+var path = require("path");
+var scriptName = path.basename(__filename, ".js");
 
 let std_ret = {
   success: false,
