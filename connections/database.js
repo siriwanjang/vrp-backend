@@ -24,9 +24,15 @@ module.exports = {
       console.log("Database Connected!");
     });
   },
-  query: (sql, callback) => {
-    conn.query(sql, (err, result, field) => {
-      callback(err, result, field);
+  query: (sql) => {
+    return new Promise((resolve, reject) => {
+      conn.query(sql, (err, result, field) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
     });
   },
 };
