@@ -155,13 +155,39 @@ module.exports = {
       // let sql_where = " WHERE 1=1";
       const result = await dbOrigin.query(sql_select + sql_from);
       if (result.length < 1) {
-        ret_data.status.description = `${scriptName}_userGetOrderList_OrderNotFound`;
+        throw `${scriptName}_userGetOrderList_OrderNotFound`;
       }
-      console.log(result);
+      const order = [];
+      const deli_order = [];
+
+      for (let e_order of result) {
+        const order_id = e_order.order_id;
+        // console.log(order_id);
+
+        // query location sequence
+        const sql_select = "SELECT *";
+        let sql_from = " FROM location_sequence lseq";
+        sql_from += " LEFT JOIN location loc ON lseq.location_id = loc.location_id";
+        let sql_where = " WHERE 1=1";
+        sql_where += ` AND order_id = ${dbOrigin.escape(order_id)}`;
+
+        const loc_seq_result = await dbOrigin.query(sql_select + sql_from + sql_where);
+        // console.log(loc_seq_result);
+
+        e_order.location_list = loc_seq_result;
+
+        // console.log(e_order);
+        const assignee_id = e_order.assignee_id;
+        if (assignee_id === null) {
+          order.push(e_order);
+        } else {
+          deli_order.push(e_order);
+        }
+      }
 
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_modelCreateOrder_Success`;
-      ret_data.data = result;
+      ret_data.data = { order: order, deli_order: deli_order };
       callback(ret_data);
     } catch (err) {
       ret_data.status.success = false;
