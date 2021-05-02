@@ -15,7 +15,7 @@ const Database = class {
     if (password) localDBConfig.password = password;
     if (dbname) localDBConfig.database = dbname;
     this.pool = mysql.createPool(localDBConfig);
-    console.log("Database Connected!");
+    // console.log("Database Connected!");
   }
 
   getConfig() {
