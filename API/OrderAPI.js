@@ -186,7 +186,7 @@ module.exports = {
       }
 
       ret_data.status.success = true;
-      ret_data.status.description = `${scriptName}_modelCreateOrder_Success`;
+      ret_data.status.description = `${scriptName}_userGetOrderList_Success`;
       ret_data.data = { order: order, deli_order: deli_order };
       callback(ret_data);
     } catch (err) {
@@ -200,5 +200,44 @@ module.exports = {
       // console.log(ret_data);
       callback(ret_data);
     }
+  },
+  userGetOrderInfo: async (data, callback) => {
+    const ret_data = { ...std_ret };
+
+    const order_id = data.order_id;
+    try {
+      if (!Util.isValid(order_id, "varchar", false)) {
+        throw `${scriptName}_modelCreateOrder_InvalidInputOrderId`;
+      }
+      const dbOrigin = new Database();
+      const sql_order_by_id = `SELECT * FROM orders WHERE order_id = ${dbOrigin.escape(order_id)}`;
+      const result = await dbOrigin.query(sql_order_by_id);
+      if (result.length < 1) {
+        throw `${scriptName}_userGetOrderInfo_OrderNotFound`;
+      }
+      // const order_id = result[0].order_id;
+
+      const sql_loc_list = `SELECT *
+      FROM location_sequence lseq
+      LEFT JOIN location loc ON lseq.location_id = loc.location_id
+      WHERE order_id = ${dbOrigin.escape(order_id)}`;
+
+      const loc_seq_result = await dbOrigin.query(sql_loc_list);
+      result[0].location_list = loc_seq_result;
+      // console.log(result[0]);
+
+      ret_data.status.success = true;
+      ret_data.status.description = `${scriptName}_userGetOrderInfo_Success`;
+      ret_data.data = { order_info: result[0] };
+    } catch (err) {
+      ret_data.status.success = false;
+      ret_data.status.description = err;
+      ret_data.data = null;
+      // console.log(typeof err.stack);
+      if (err.stack !== undefined) {
+        ret_data.description = err.stack;
+      }
+    }
+    callback(ret_data);
   },
 };
