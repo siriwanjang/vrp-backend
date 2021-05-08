@@ -9,12 +9,10 @@ app.use(express.json());
 app.use(cors());
 const port = 4000;
 
-// test db
-// db.dbConnect();
-// db.query("SELECT * FROM users", (err, result, field) => {
-//   console.log((err, result));
-// });
-// test db
+const db = require("./models/index");
+db.sequelize.sync({ alter: true }).then(() => {
+  // console.log("Drop and re-sync db.");
+});
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
