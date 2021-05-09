@@ -2,7 +2,9 @@ const Util = require("../Utility/Util");
 var path = require("path");
 var scriptName = path.basename(__filename, ".js");
 
-const Database = require("../connections/Database");
+const location = require("../controller/location.controller");
+const location_sequence = require("../controller/location_sequence.controller");
+const routes = require("../controller/routes.controller");
 
 let std_ret = {
   status: {
@@ -16,117 +18,81 @@ module.exports = {
   modelCreateOrder: async (data, callback) => {
     const ret_data = { ...std_ret };
 
-    const node_num = data.node_num;
-    const distance = data.distance;
-    const estimate_time = data.estimate_time;
-    const node_list = data.node_list;
+    // const node_num = data.node_num;
+    // const distance = data.distance;
+    // const estimate_time = data.estimate_time;
+    const car_list = data.car_list;
+    // console.log(car_list);
 
     try {
-      if (!Util.isValid(node_num, "number", false)) {
-        throw `${scriptName}_modelCreateOrder_InvalidInputNodeNum`;
-      }
-      if (!Util.isValid(distance, "number", false)) {
-        throw `${scriptName}_modelCreateOrder_InvalidInputDistance`;
-      }
-      if (!Util.isValid(estimate_time, "number", false)) {
-        throw `${scriptName}_modelCreateOrder_InvalidInputEstimateTime`;
-      }
-      if (!Util.isValid(node_list, "list", false)) {
-        throw `${scriptName}_modelCreateOrder_InvalidInputNodeList`;
+      //   if (!Util.isValid(node_num, "number", false)) {
+      //     throw `${scriptName}_modelCreateOrder_InvalidInputNodeNum`;
+      //   }
+      //   if (!Util.isValid(distance, "number", false)) {
+      //     throw `${scriptName}_modelCreateOrder_InvalidInputDistance`;
+      //   }
+      //   if (!Util.isValid(estimate_time, "number", false)) {
+      //     throw `${scriptName}_modelCreateOrder_InvalidInputEstimateTime`;
+      //   }
+      if (!Util.isValid(car_list, "list", false)) {
+        throw `${scriptName}_modelCreateOrder_InvalidInputCarList`;
       }
 
-      const dbOrigin = new Database();
-      // check array equal nodenum
-      if (node_list.length !== node_num) {
-        throw `${scriptName}_modelCreateOrder_NodeListNotEqualNodeNum`;
-      }
-      // check each node_list is exist on database
-      const location_id_list = [];
-      for (let e_node of node_list) {
-        const sql_select = "SELECT *";
-        const sql_from = " FROM location";
-        let sql_where = " WHERE 1 = 1";
-        sql_where += ` AND location_lat = ${dbOrigin.escape(e_node.lat)}`;
-        sql_where += ` AND location_long = ${dbOrigin.escape(e_node.long)}`;
-
-        let result = await dbOrigin.query(sql_select + sql_from + sql_where);
-        if (result.length < 1) {
-          const sql_insert = "INSERT INTO location (location_name,location_lat, location_long)";
-          const sql_values = ` VALUE (
-                                ${dbOrigin.escape(e_node.location_name)},
-                                ${dbOrigin.escape(e_node.lat)},
-                                ${dbOrigin.escape(e_node.long)}
-                              )`;
-          const insert_result = await dbOrigin.query(sql_insert + sql_values);
-          if (!insert_result) {
-            throw `${scriptName}_modelCreateOrder_ErrorInsertLocation`;
-          }
-          result = await dbOrigin.query(sql_select + sql_from + sql_where);
+      // const route_data = [];
+      for (let e_car of car_list) {
+        // console.log(e_car);
+        const e_location_list = e_car.location_list;
+        const e_route_data = {
+          node_num: e_car.location_list.length,
+          distance: e_car.total_distance,
+          estimate_time: e_car.total_time,
+          create_date: Util.getDateTime(),
+          status: 1,
+        };
+        // create route
+        const route_res = await routes.create(e_route_data);
+        if (route_res === false) {
+          throw `${scriptName}_modelCreateOrder_ErrorInsertRoute`;
         }
-        location_id_list.push({ location_seq: e_node.seq, location_id: result[0].location_id });
-      }
+        e_route_data.route_id = route_res.dataValues.route_id;
+        // check location exist
+        for (let e_loc of e_location_list) {
+          // validate data
+          const location_data = {
+            location_name: e_loc.name,
+            location_type: e_loc.type,
+            location_lat: e_loc.lat,
+            location_long: e_loc.long,
+            arrive_time: e_loc.arrive_time,
+            depart_time: e_loc.depart_time,
+            service_time: e_loc.service_time,
+          };
+          let location_id;
+          const location_res = await location.findByLatLon(
+            location_data.location_lat,
+            location_data.location_long
+          );
+          // console.log(location_res[0].location_id);
+          if (location_res.length === 0) {
+            // insert to database
+            const location_res = await location.create(location_data);
+            location_id = location_res.dataValues.location_id;
+          } else {
+            location_id = location_res[0].location_id;
+          }
 
-      // create order
-
-      let order_id = Util.getDateTime().split(" ")[0].replace(/-/g, "");
-      let result_for_id;
-      let suffix_id = 0;
-      do {
-        const sql_select = "SELECT *";
-        const sql_from = " FROM orders";
-        let sql_where = " WHERE 1=1";
-        sql_where += ` AND order_id = ${dbOrigin.escape(
-          order_id + Util.zeroPadding(2, ++suffix_id)
-        )}`;
-        result_for_id = await dbOrigin.query(sql_select + sql_from + sql_where);
-
-        // console.log(sql_select + sql_from + sql_where);
-      } while (result_for_id.length > 0);
-      order_id += Util.zeroPadding(2, suffix_id);
-      // node_num
-      // distance
-      // estimate_time
-      const create_date = Util.getDateTime();
-      const status = "1";
-
-      const insert_obj = {
-        order_id: order_id,
-        node_num: node_num,
-        distance: distance,
-        estimate_time: estimate_time,
-        create_date: create_date,
-        status: status,
-      };
-      // console.log("Insert => ", insert_obj);
-      const sql_insert1 =
-        "INSERT INTO orders (order_id, node_num, distance, estimate_time, create_date, status)";
-      const sql_values1 = ` VALUE (
-                            ${dbOrigin.escape(insert_obj.order_id)},
-                            ${dbOrigin.escape(insert_obj.node_num)},
-                            ${dbOrigin.escape(insert_obj.distance)},
-                            ${dbOrigin.escape(insert_obj.estimate_time)},
-                            ${dbOrigin.escape(insert_obj.create_date)},
-                            ${dbOrigin.escape(insert_obj.status)}
-                          )`;
-      const insert_result1 = await dbOrigin.query(sql_insert1 + sql_values1);
-      if (!insert_result1) {
-        throw `${scriptName}_modelCreateOrder_ErrorInsertOrder`;
-      }
-
-      // insert location_sequence
-      const sql_insert2 = "INSERT INTO location_sequence (sequence, order_id, location_id)";
-      let sql_values2 = `VALUES `;
-      for (let e_location_id_list of location_id_list) {
-        sql_values2 += `(
-          ${dbOrigin.escape(e_location_id_list.location_seq)},
-          ${dbOrigin.escape(insert_obj.order_id)},
-          ${dbOrigin.escape(e_location_id_list.location_id)}
-        ),`;
-      }
-      sql_values2 = sql_values2.slice(0, -1);
-      const insert_result2 = await dbOrigin.query(sql_insert2 + sql_values2);
-      if (!insert_result2) {
-        throw `${scriptName}_modelCreateOrder_ErrorInsertLocationSeq`;
+          // insert sequence
+          const e_seq = {
+            sequence: e_loc.seq,
+            route_id: e_route_data.route_id,
+            location_id: location_id,
+            arrive_time: location_data.arrive_time,
+            depart_time: location_data.depart_time,
+            service_time: location_data.service_time,
+          };
+          // console.log(e_seq);
+          location_sequence.create(e_seq);
+        }
       }
 
       ret_data.status.success = true;
@@ -148,46 +114,31 @@ module.exports = {
   userGetOrderList: async (data, callback) => {
     const ret_data = { ...std_ret };
     try {
-      const dbOrigin = new Database();
-      const sql_select = "SELECT *";
-      const sql_from = " FROM orders";
-      // where time range
-      // let sql_where = " WHERE 1=1";
-      const result = await dbOrigin.query(sql_select + sql_from);
-      if (result.length < 1) {
+      const route_res = await routes.getAllRoute();
+      if (route_res.length < 1) {
         throw `${scriptName}_userGetOrderList_OrderNotFound`;
       }
-      const order = [];
-      const deli_order = [];
-
-      for (let e_order of result) {
-        const order_id = e_order.order_id;
-        // console.log(order_id);
-
-        // query location sequence
-        const sql_select = "SELECT *";
-        let sql_from = " FROM location_sequence lseq";
-        sql_from += " LEFT JOIN location loc ON lseq.location_id = loc.location_id";
-        let sql_where = " WHERE 1=1";
-        sql_where += ` AND order_id = ${dbOrigin.escape(order_id)}`;
-
-        const loc_seq_result = await dbOrigin.query(sql_select + sql_from + sql_where);
-        // console.log(loc_seq_result);
-
-        e_order.location_list = loc_seq_result;
-
-        // console.log(e_order);
-        const assignee_id = e_order.assignee_id;
-        if (assignee_id === null) {
-          order.push(e_order);
+      for (let [index, e_route] of route_res.entries()) {
+        // e_route.test = "eiei";
+        const route_id = e_route.route_id;
+        // console.log("index", index);
+        // console.log(route_id);
+        // query loc_seq
+        const loc_seq = await location_sequence.findAll(route_id);
+        if (loc_seq.length < 1) {
+          continue;
         } else {
-          deli_order.push(e_order);
+          route_res[index].location_list = loc_seq;
+          // for (let e_loc_seq of loc_seq) {
+          //   console.log(e_loc_seq.location);
+          // }
         }
       }
 
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_userGetOrderList_Success`;
-      ret_data.data = { order: order, deli_order: deli_order };
+      // ret_data.data = { order: order, deli_order: deli_order };
+      ret_data.data = { order_list: route_res };
       callback(ret_data);
     } catch (err) {
       ret_data.status.success = false;
@@ -204,31 +155,24 @@ module.exports = {
   userGetOrderInfo: async (data, callback) => {
     const ret_data = { ...std_ret };
 
-    const order_id = data.order_id;
+    const route_id = data.route_id;
     try {
-      if (!Util.isValid(order_id, "varchar", false)) {
-        throw `${scriptName}_modelCreateOrder_InvalidInputOrderId`;
+      if (!Util.isValid(route_id, "varchar", false)) {
+        throw `${scriptName}_modelCreateOrder_InvalidInputRouteId`;
       }
-      const dbOrigin = new Database();
-      const sql_order_by_id = `SELECT * FROM orders WHERE order_id = ${dbOrigin.escape(order_id)}`;
-      const result = await dbOrigin.query(sql_order_by_id);
-      if (result.length < 1) {
-        throw `${scriptName}_userGetOrderInfo_OrderNotFound`;
+
+      const route_res = await routes.getRouteById(route_id);
+      if (route_res.length < 1 || route_res === false) {
+        throw `${scriptName}_userGetOrderInfo_RouteNotFound`;
       }
-      // const order_id = result[0].order_id;
+      // const route_id = route_res[0].route_id;
 
-      const sql_loc_list = `SELECT *
-      FROM location_sequence lseq
-      LEFT JOIN location loc ON lseq.location_id = loc.location_id
-      WHERE order_id = ${dbOrigin.escape(order_id)}`;
-
-      const loc_seq_result = await dbOrigin.query(sql_loc_list);
-      result[0].location_list = loc_seq_result;
-      // console.log(result[0]);
+      const loc_seq = await location_sequence.findAll(route_id);
+      route_res[0].location_list = loc_seq;
 
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_userGetOrderInfo_Success`;
-      ret_data.data = { order_info: result[0] };
+      ret_data.data = { route_info: route_res };
     } catch (err) {
       ret_data.status.success = false;
       ret_data.status.description = err;
