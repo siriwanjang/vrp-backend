@@ -32,10 +32,10 @@ db.user_role = require("./user_role.model")(sequelize, DataTypes);
 // create foreign key to role_id
 db.users.belongsTo(db.user_role, { foreignKey: "role_id", as: "role" });
 db.location = require("./location.model")(sequelize, DataTypes);
-db.orders = require("./orders.model")(sequelize, DataTypes);
-db.orders.belongsTo(db.users, { foreignKey: "assignee_id", as: "assignee" });
+db.routes = require("./routes.model")(sequelize, DataTypes);
+db.routes.belongsTo(db.users, { foreignKey: "assignee_id", as: "assignee" });
 db.location_sequence = require("./location_sequence.model")(sequelize, DataTypes);
-db.location_sequence.belongsTo(db.orders, { foreignKey: "order_id", as: "order" });
+db.location_sequence.belongsTo(db.routes, { foreignKey: "route_id", as: "route" });
 db.location_sequence.belongsTo(db.location, { foreignKey: "location_id", as: "location" });
 
 module.exports = db;
