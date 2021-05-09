@@ -1,10 +1,10 @@
 module.exports = (sequelize, DataTypes) => {
-  const Orders = sequelize.define("orders", {
-    order_id: {
-      type: DataTypes.STRING(16),
-      allowNull: true,
+  const Routes = sequelize.define("routes", {
+    route_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
       primaryKey: true,
-      //   autoIncrement: true,
+      autoIncrement: true,
     },
     node_num: {
       type: DataTypes.INTEGER,
@@ -32,5 +32,5 @@ module.exports = (sequelize, DataTypes) => {
     },
   });
 
-  return Orders;
+  return Routes;
 };

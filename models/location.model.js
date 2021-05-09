@@ -10,6 +10,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(128),
       allowNull: false,
     },
+    location_type: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+    },
     location_lat: {
       type: DataTypes.FLOAT,
       allowNull: false,
