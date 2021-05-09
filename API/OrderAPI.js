@@ -172,7 +172,7 @@ module.exports = {
 
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_userGetOrderInfo_Success`;
-      ret_data.data = { route_info: route_res };
+      ret_data.data = { route_info: route_res[0] };
     } catch (err) {
       ret_data.status.success = false;
       ret_data.status.description = err;
