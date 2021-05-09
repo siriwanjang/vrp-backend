@@ -138,7 +138,7 @@ module.exports = {
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_userGetOrderList_Success`;
       // ret_data.data = { order: order, deli_order: deli_order };
-      ret_data.data = { order_list: route_res };
+      ret_data.data = { order: route_res, deli_order: [] };
       callback(ret_data);
     } catch (err) {
       ret_data.status.success = false;
