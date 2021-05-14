@@ -113,8 +113,11 @@ module.exports = {
   },
   userGetOrderList: async (data, callback) => {
     const ret_data = { ...std_ret };
+
+    const date = data.date || Util.getDateTime().split(" ")[0];
     try {
-      const route_res = await routes.getAllRoute();
+      const route_res = await routes.getRouteInDate(date);
+      // const route_res = await routes.getAllRoute();
       if (route_res.length < 1) {
         throw `${scriptName}_userGetOrderList_OrderNotFound`;
       }
