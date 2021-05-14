@@ -47,6 +47,30 @@ exports.getRouteById = async (route_id) => {
   }
 };
 
+exports.getRouteInDate = async (date) => {
+  console.log();
+  const start_date = date + " " + "00:00:00";
+  const end_date = date + " " + "23:59:59";
+  console.log(start_date, end_date);
+  try {
+    const result = await routes.findAll({
+      raw: true,
+      attributes: { exclude: ["createdAt", "updatedAt"] },
+      // include: [{ model: db.location_sequence }],
+      where: {
+        create_date: {
+          [Op.gt]: start_date,
+          [Op.lt]: end_date,
+        },
+      },
+    });
+    return result;
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+};
+
 // // Find a single Tutorial with an id
 // exports.findOne = (req, res) => {};
 
