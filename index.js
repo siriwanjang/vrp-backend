@@ -15,7 +15,7 @@ db.sequelize.sync({ alter: false, force: false }).then(() => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("VRP-Backend is running...");
 });
 
 app.post("/api", (req, res) => {
