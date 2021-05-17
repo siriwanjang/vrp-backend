@@ -1,5 +1,7 @@
 const Util = require("../Utility/Util");
 var path = require("path");
+const axios = require("axios");
+
 var scriptName = path.basename(__filename, ".js");
 
 const location = require("../controller/location.controller");
@@ -21,6 +23,8 @@ module.exports = {
     // const node_num = data.node_num;
     // const distance = data.distance;
     // const estimate_time = data.estimate_time;
+    const order_date = data.order_date || Util.getDateTime();
+    console.log("order_date-> test", order_date);
     const car_list = data.car_list;
     // console.log(car_list);
 
@@ -46,7 +50,7 @@ module.exports = {
           node_num: e_car.location_list.length,
           distance: e_car.total_distance,
           estimate_time: e_car.total_time,
-          create_date: Util.getDateTime(),
+          create_date: order_date,
           status: 1,
         };
         // create route
@@ -176,6 +180,126 @@ module.exports = {
       ret_data.status.success = true;
       ret_data.status.description = `${scriptName}_userGetOrderInfo_Success`;
       ret_data.data = { route_info: route_res[0] };
+    } catch (err) {
+      ret_data.status.success = false;
+      ret_data.status.description = err;
+      ret_data.data = null;
+      // console.log(typeof err.stack);
+      if (err.stack !== undefined) {
+        ret_data.description = err.stack;
+      }
+    }
+    callback(ret_data);
+  },
+  systemUpdateOrder: async (data, callback) => {
+    const ret_data = { ...std_ret };
+
+    try {
+      const today_date = Util.getDateTime().split(" ")[0];
+      // const today_date = "2020-11-10";
+      // check today reccord
+      const result = await routes.getRouteInDate(today_date);
+      if (result.length > 0) {
+        throw `${scriptName}_systemUpdateOrder_DataIsUpToDate`;
+      }
+
+      const modelDb = require("../connection/modelDB");
+      const model_result = await modelDb.queryData(today_date);
+      if (model_result.length < 1) {
+        throw `${scriptName}_systemUpdateOrder_OrderNotFound`;
+      }
+      const ret_result = {};
+      for (let e_route of model_result) {
+        // console.log(e_route);
+        const route_id = e_route.ROUTE_ID;
+        const total_distance = e_route.TOTAL_DISTANCE_EST;
+        const total_time_arr = e_route.TOTAL_TIME_EST.split(":");
+        const total_time =
+          parseInt(total_time_arr[2]) +
+          parseInt(total_time_arr[1]) * 60 +
+          parseInt(total_time_arr[0]) * 60 * 60;
+        const seq_num = e_route.INDEX_VEH;
+
+        const src_id = e_route.SOURCE_ID;
+        const des_id = e_route.DESTINATION_ID;
+
+        const arrive_time = today_date + " " + e_route.ARRIVAL_TIME;
+        const depart_time = today_date + " " + e_route.DEPART_TIME;
+        const service_time_arr = e_route.SERVICE_TIME.split(":");
+        const service_time =
+          parseInt(service_time_arr[2]) +
+          parseInt(service_time_arr[1]) * 60 +
+          parseInt(service_time_arr[0]) * 60 * 60;
+
+        const location_detail1 = {
+          seq: seq_num,
+          location_id: src_id,
+          arrive_time: depart_time,
+          depart_time: depart_time,
+          service_time: service_time,
+        };
+        const location_detail2 = {
+          seq: seq_num + 1,
+          location_id: des_id,
+          arrive_time: arrive_time,
+          depart_time: arrive_time,
+          service_time: service_time,
+        };
+        // console.log(location_detail2);
+        // console.log(typeof ret_result[route_id]);
+        if (typeof ret_result[route_id] === "undefined") {
+          ret_result[route_id] = {
+            total_distance: total_distance,
+            total_time: total_time,
+            location_list: [location_detail1, location_detail2],
+          };
+        } else {
+          ret_result[route_id].location_list.push(location_detail2);
+        }
+      }
+
+      const api_body = {
+        api: "OrderAPI",
+        method: "modelCreateOrder",
+        data: {
+          order_date: today_date,
+          car_list: [],
+        },
+      };
+
+      const route_keys = Object.keys(ret_result);
+      for (let e_key of route_keys) {
+        const location_list = ret_result[e_key].location_list;
+        // console.log(e_key);
+        // console.log(ret_result[e_key].location_list);
+
+        for (let [index, e_loc] of location_list.entries()) {
+          // console.log(ret_result[e_key].location_list[index]);
+          const [loc_data] = await modelDb.queryLocation(e_loc.location_id);
+          delete ret_result[e_key].location_list[index].location_id;
+          ret_result[e_key].location_list[index].name = loc_data.NAME;
+          ret_result[e_key].location_list[index].type = loc_data.TYPE;
+          ret_result[e_key].location_list[index].lat = loc_data.LAT;
+          ret_result[e_key].location_list[index].long = loc_data.LONG;
+        }
+        // console.log(ret_result[e_key]);
+
+        const e_car_data = {
+          car_id: e_key,
+          ...ret_result[e_key],
+        };
+        api_body.data.car_list.push(e_car_data);
+      }
+      // console.log(api_body);
+      // console.log("test");
+      try {
+        const api_call_res = await axios.post("http://localhost:4000/api", api_body);
+        console.log(api_call_res.data);
+      } catch (err) {
+        console.log(err);
+      }
+      ret_data.status.success = true;
+      ret_data.status.description = `${scriptName}_systemUpdateOrder_Success`;
     } catch (err) {
       ret_data.status.success = false;
       ret_data.status.description = err;
