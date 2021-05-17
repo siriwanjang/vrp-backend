@@ -16,11 +16,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     arrive_time: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
     },
     depart_time: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
     },
     service_time: {
       type: DataTypes.INTEGER,

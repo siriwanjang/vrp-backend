@@ -15,11 +15,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
     },
     location_lat: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DOUBLE,
       allowNull: false,
     },
     location_long: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DOUBLE,
       allowNull: false,
     },
   });
