@@ -195,7 +195,7 @@ module.exports = {
     const ret_data = { ...std_ret };
 
     try {
-      const today_date = Util.getDateTime().split(" ")[0];
+      const today_date = data.date || Util.getDateTime().split(" ")[0];
       // const today_date = "2020-11-10";
       // check today reccord
       const result = await routes.getRouteInDate(today_date);
