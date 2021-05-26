@@ -59,7 +59,7 @@ exports.getRouteInDate = async (date) => {
       // include: [{ model: db.location_sequence }],
       where: {
         create_date: {
-          [Op.gt]: start_date,
+          [Op.gte]: start_date,
           [Op.lt]: end_date,
         },
       },
